@@ -1,0 +1,49 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: floggy-db
+    environment:
+      POSTGRES_DB: floggy
+      POSTGRES_USER: floggy
+      POSTGRES_PASSWORD: floggy123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U floggy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - floggy-network
+
+  app:
+    build: .
+    container_name: floggy-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/floggy
+      SPRING_DATASOURCE_USERNAME: floggy
+      SPRING_DATASOURCE_PASSWORD: floggy123
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_SHOW_SQL: "false"
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      VULNERABILITY_SNYK_API_TOKEN: ${SNYK_API_TOKEN:-}
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - floggy-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  floggy-network:
+    driver: bridge
